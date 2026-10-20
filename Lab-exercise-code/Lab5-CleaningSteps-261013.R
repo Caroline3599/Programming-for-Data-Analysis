@@ -81,15 +81,33 @@ length(unique(ct))
 # ii) R code to standardise Payment Method values:
 library(dplyr)
 table(pm)
-pm_clean <- unique(gsub("[ -_]", "",trimws(tolower(pm))))
-
-
+pm_clean <- gsub("[ -_]", "",trimws(tolower(pm)))
+pm_final <- case_when(
+  pm_clean %in% c("ewallet", "wallet") ~ "ewallet",
+  pm_clean %in% c("creditcard", "cc", "card") ~ "credit card",
+  pm_clean %in% c("qr", "qrpay") ~ "qr",
+  pm_clean %in% c("unknownmethod", "cheque", "voucher","bitcoin") ~ NA,
+  pm_clean %in% "cash" ~ "cash"
+)
+table(pm_final, useNA = "ifany")
   
 # iii) R code to standardise Customer Type values:
-
+ct <- brewhaus_clean$Customer_Type
+table(ct, useNA = "ifany")
+ct_clean <- gsub("[- _]", "", tolower(trimws(ct)))
+ct_final <- case_when(
+  ct_clean %in% c("member", "vip") ~ "member",
+  ct_clean == "nonmember" ~ "nonmember",
+  ct_clean == "guest" ~ "guest",
+  ct_clean %in% c("corporate", "employee", "unknown") ~ NA
+)
+table(ct_final, useNA = "ifany")
+table(ct_clean)
   
 # iv) R code to count unique values for Payment Method and Customer Type values 
 # after standardisation:
+unique(pm_final)
+unique(ct_final)
 
 
 # Question 6

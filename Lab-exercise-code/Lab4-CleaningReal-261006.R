@@ -201,6 +201,7 @@ mapply(sum, 1:3, 4:6)  # 1+4, 2+5, 3+6
 
 # read.csv("Brewhaus_dataset.csv", stringsAsFactors = FALSE, check.names = FALSE)
 setwd("D:/APU/9-code")
+setwd("D:/Users/nihao/Documents/Programming-for-Data-Analysis")
 brewhaus <- read.csv(
   "Brewhaus_dataset.csv", 
   fileEncoding = "UTF-8-BOM"
@@ -216,11 +217,12 @@ dim(brewhaus)
 # 2. which columns are numeric in R? 
 str(brewhaus)
 class(brewhaus$Transaction.ID)
+names(brewhaus)[sapply(brewhaus, is.numeric)]
 
 
 # 3. Which columns contain one or more `NA` values
-colSums(is.na(brewhaus))
-
+names(which(colSums(is.na(brewhaus)) > 0))
+?which
 
 # 4. How many `NA` values are present in `Revenue (RM)`?
 sum(is.na(brewhaus$Revenue..RM.))
@@ -242,10 +244,19 @@ char_col[sapply(brewhaus[char_col], function(x) any(x == ""))]
 # method 2
 names(brewhaus)[sapply(brewhaus, function(x) is.character(x) && any(x == ""))]
 
+# method 3
+char_col <- names(brewhaus)[sapply(brewhaus, is.character)]
+blank_counts <- colSums(brewhaus[char_col] == "", na.rm = TRUE)
+names(blank_counts[blank_counts > 0])
+
 
 # 6. How many Transaction ID values are missing or blank?
 sum(sapply(brewhaus$Transaction.ID, function(x) any(x == "") | is.na(x)))
 
+# method 2
+id <- brewhaus$Transaction.ID
+sum(id == "" | is.na(id))
+str(id)
 
 # 7. Ignoring missing/blank IDs, how many Transaction ID values 
 # do not match the required pattern `BH` followed by exactly six digits?
@@ -255,6 +266,11 @@ valid_ids = brewhaus$Transaction.ID[!is.na(brewhaus$Transaction.ID) &
 
 invalid_ids <- sum(!grepl(pattern, valid_ids))
 invalid_ids
+
+
+# method 2
+id <- brewhaus$Transaction.ID
+sum(!is.na(id) & id != "" & !grepl("^BH[0-9]{6}$", id))
 
 
 # 8. How many additional exact duplicate rows are present?
@@ -267,14 +283,28 @@ id_counts <- table(valid_ids)
 repeated_ids <- names(id_counts[id_counts > 1])
 sum(brewhaus$Transaction.ID %in% repeated_ids, na.rm = TRUE)
 
+# method 2
+id <- brewhaus$Transaction.ID
+nonblank <- id[!is.na(id) | id != ""]
+sum(nonblank %in% nonblank[duplicated(nonblank)])
+
+
 
 # 10. How many distinct nonblank Transaction IDs are repeated?
 length(unique(repeated_ids))
+
+# method 2
+length(unique(nonblank[duplicated(nonblank)]))
 
 
 # 11. How many `Payment Method` records contain leading or trailing whitespace?
 pattern2 = "^\\s|\\s$"
 sum(grepl(pattern2, brewhaus$Payment.Method))
+
+# method 2
+pm <- brewhaus$Payment.Method
+sum(pm != trimws(pm), na.rm = TRUE)
+
 
 
 # 12. Check `Payment Method`, `Outlet Name`, `Customer Type`, and `Product Category` 
@@ -290,6 +320,25 @@ num12 <- c("Payment.Method",
 sum(sapply(brewhaus[num12], function(x) sum(grepl(pattern2, x))))
 
 num12 <- c("Payment.Method", "Outlet.Name", "Customer.Type", "Product.Category")
+
+
+# method 2
+pm <- brewhaus$Payment.Method
+sum(pm != trimws(pm), na.rm = TRUE)
+on <- brewhaus$Outlet.Name
+ct <- brewhaus$Customer.Type
+pc <- brewhaus$Product.Category
+
+# 13. Why can inconsistent categorical labels cause problems in analysis? 
+sort(table(pm, useNA = "ifany"), decreasing = TRUE)
+
+
+# 14.  Report three examples of categorical representation variants and explain one 
+# possible impact.
+table(on, useNA = "ifany")
+table(pm, useNA = "ifany")
+table(ct, useNA = "ifany")
+table(pc, useNA = "ifany")
 
 
 
@@ -310,6 +359,16 @@ length(pm_raw)
 length(pm_temp[keep])
 
 
+# method 2
+nonblank_pm <- pm[!is.na(pm) & pm != ""]
+pm <- tolower(trimws(nonblank_pm))
+table(pm_clean, useNA = "ifany")
+pm_clean <- gsub(" ", "", gsub("[ -_]", " ", pm))
+valid_pm <- c("card", "cash", "cc", "creditcard", "ewallet", "wallet", "qr", "qrpay")
+
+sum(!(pm_clean %in% valid_pm))
+
+
 # 16. How many genuinely invalid `Product Category` occurrences are present?
 pc <- brewhaus$Product.Category
 pc
@@ -324,6 +383,15 @@ pc_invalid_nums <- (length(unique(pc))
                     + length(unique(pc_blank)) 
                     + 1)
 pc_invalid_nums
+
+
+# method 2
+pc <- brewhaus$Product.Category
+nonblank_pc <- pc[!is.na(pc) & pc != ""]
+table(pc_clean)
+pc_clean <- gsub("[ -_]", "" ,tolower(trimws(nonblank_pc)))
+valid_pc <- c("coffee", "dessert", "desserts", "merchandise", "pastry", "sandwich", "tea")
+sum(!(pc_clean %in% valid_pc))
 
 # pc_desserts <- brewhaus[pc == "Desserts",]
 # pc_invalid <- (length(pc)
@@ -348,6 +416,8 @@ sum(sapply(num17$Product.Category, function(x) x == invalid_ca), na.rm = TRUE)
 
 
 
+
+
 # 18. How many Transaction Date strings match a slash-date pattern 
 # such as `DD/MM/YYYY` or `MM/DD/YYYY`?
 names(brewhaus)
@@ -359,7 +429,7 @@ sum(dy_slash)
 
 
 # 19. How many Transaction Date strings use a text-month format such as `15 Mar 2026`?
-pattern4 <- "^[0-9]{2} ... [0-9]{4}$"
+pattern4 <- "^[0-9]{2} [A-Za-z]{3} [0-9]{4}$"
 dy_char <- grepl(pattern4, dy)
 sum(dy_char)
 
@@ -376,6 +446,16 @@ dy_missing <- is.na(dy) | dy == ""
 sum(is.na(dy))
 sum(dy == "" )
 length(dy)-sum(dy_missing)-sum(dy_valid)
+
+# method 2
+d <- brewhaus$Transaction.Date
+nonblank_dates <- d[d != "" & !is.na(d)]
+d_slash <- grepl("^[0-9]{2}/[0-9]{2}/[0-9]{4}$|^[0-9]{2}-[0-9]{2}-[0-9]{4}$", nonblank_dates)
+d_char <- grepl("^[0-9]{2} [A-Za-z]{3} [0-9]{4}$", nonblank_dates)
+d_iso <- grepl("^[0-9]{4}-[0-9]{2}-[0-9]{2}$", nonblank_dates)
+known <- d_slash | d_char | d_iso
+sum(!known)
+nonblank_dates[d_slash]
 
 
 # 22. Among the ISO-looking Transaction Date strings, 
