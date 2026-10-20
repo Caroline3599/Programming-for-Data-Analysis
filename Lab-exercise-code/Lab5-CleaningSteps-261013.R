@@ -112,14 +112,31 @@ unique(ct_final)
 
 # Question 6
 # i)R code to set invalid payment methods to NA:
-
+brewhaus_clean$Payment_Method <- pm_final
   
 # ii) R code to set invalid customer types to NA:
-
+brewhaus_clean$Customer_Type <- ct_final
 
 # Question 7
 # Write R code to clean the transaction date column
-
+date_clean <- as.Date(brewhaus_clean$Transaction_Date, format = "%d/%m/%Y")
+unparsed <- is.na(date_clean)
+date_clean[unparsed] <- as.Date(brewhaus_clean$Transaction_Date[unparsed], format = "%Y-%m-%d")
+brewhaus_clean$Transaction_Date <- date_clean
 
 # Quesiton 8
 # Write R code to derive Day Type from non NA dates from the cleaned dates
+brewhaus_clean$Day_Type <- case_when(
+  is.na(brewhaus_clean$Transaction_Date) ~ NA_character_,
+  weekdays(brewhaus_clean$Transaction_Date) %in% c("Saturday", "Sunday") ~ "Weekend",
+  TRUE ~ "Weekday"
+)
+
+# 最终检查清洗后的数据结构和变量
+str(brewhaus_clean)
+head(brewhaus_clean)
+dim(brewhaus_clean)
+
+# 将 brewhaus_clean 变量保存为名为 brewhaus_cleaned_5a.rds 的文件
+saveRDS(brewhaus_clean, file = "brewhaus_cleaned_5a.rds")
+

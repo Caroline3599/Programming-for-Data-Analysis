@@ -157,3 +157,4 @@ nc[mean_by_day] <-
 
 # iii) R code to count the missing values left in transaction_date_clean, payment_method and customer_type (these are never imputed)
 clean$Day_Type
+
