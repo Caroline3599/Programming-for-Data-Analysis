@@ -139,7 +139,7 @@ clean$Waiting_Minutes[waiting_minutes_uncapped] <- upper_wm
 max(clean$Waiting_Minutes, na.rm = TRUE)
 
 
-# Q7-----------------------------
+# Q8-----------------------------
 # i) R code to replace missing satisfaction_score values with the median 
 # and flag them as flag_score_imputed
 ss <- clean$Satisfaction_Score
@@ -153,8 +153,96 @@ clean$Satisfaction_Score <- ss
 nc <- clean$No__Customers
 flag_cust_imputed <- is.na(nc)
 mean_by_day <- ave(nc, clean$Day_Type, FUN = function(x) round(mean(x, na.rm = TRUE)))
-nc[mean_by_day] <- 
+nc[flag_cust_imputed] <- mean_by_day 
+clean$No__Customers <- nc
 
-# iii) R code to count the missing values left in transaction_date_clean, payment_method and customer_type (these are never imputed)
-clean$Day_Type
 
+# iii) R code to count the missing values left in transaction_date_clean, 
+# payment_method and customer_type (these are never imputed)
+sum(is.na(clean[c("Transaction_Date", "Payment_Method", "customer_Type"),]))
+
+
+# Q9-----------------------------
+# i) R code to select the rows with a resolved ID and a clean date
+sum(duplicated(clean$Transaction_ID))
+sum(duplicated(clean$Transaction_Date))
+colSums(is.na(clean))
+valid_rows <- !is.na(clean$Transaction_Date) & !is.na(clean$Transaction_ID)
+
+# ii) R code to create the analysis-ready dataset called baseline
+baseline <- clean[valid_rows,]
+
+# iii) R code to verify the row counts and the remaining missing values in baseline
+nrow(baseline)
+summary(baseline)
+colSums(is.na(baseline))
+names(baseline) <- tolower(names(baseline))
+
+#Remove the original raw columns (the cleaned versions are kept)
+
+raw_cols <- c("day_type", "transaction_date", "revenue_raw")
+
+baseline <- baseline[, !(names(baseline) %in% raw_cols)]
+
+
+
+#Save the analysis-ready dataset to a CSV file
+
+
+write.csv(baseline, "brewhaus_ready_for_analysis.csv", row.names = FALSE)
+
+
+
+#Verify the file was saved
+
+file.exists("brewhaus_ready_for_analysis.csv")   
+
+ready <- read.csv("brewhaus_ready_for_analysis.csv")
+
+
+
+#Rule checks (every line should be TRUE)
+
+c(Final_Row_Count    = nrow(ready) == 9705,
+  
+  No_duplicate_IDs   = sum(duplicated(ready$transaction_id)) == 0,
+  
+  No_missing_IDs     = sum(is.na(ready$transaction_id)) == 0,
+  
+  No_missing_dates   = sum(is.na(ready$transaction_date_clean)) == 0,
+  
+  Revenue_positive   = all(ready$revenue_rm > 0, na.rm = TRUE),
+  
+  Score_1_to_5       = all(ready$satisfaction_score >= 1 &
+                             
+                             ready$satisfaction_score <= 5),
+  
+  Score_no_NA        = sum(is.na(ready$satisfaction_score)) == 0,
+  
+  Cust_whole_numbers = all(ready$no_customers %% 1 == 0),
+  
+  Cust_positive      = all(ready$no_customers > 0),
+  
+  Cust_no_NA         = sum(is.na(ready$no_customers)) == 0,
+  
+  Wait_capped        = max(ready$waiting_minutes, na.rm = TRUE) <= 25.45,
+  
+  Payment_valid      = all(ready$payment_method %in%
+                             
+                             c("Cash", "Credit Card", "E-Wallet", "QR Pay") |
+                             
+                             is.na(ready$payment_method)),
+  
+  Customer_valid     = all(ready$customer_type %in%
+                             
+                             c("Member", "Non-Member", "Guest") |
+                             is.na(ready$customer_type)),
+  Outlet_valid       = all(ready$outlet_name %in% paste("Outlet", 1:6) |
+                             is.na(ready$outlet_name)),
+  Product_valid      = all(ready$product_category %in%
+                             c("Coffee", "Pastry", "Tea", "Sandwich",
+                               "Dessert", "Merchandise") |
+                             is.na(ready$product_category)),
+  Cust_outlier_flag  = "flag_cust_outlier" %in% names(ready),
+  Raw_cols_removed   = !any(c("day_type", "transaction_date", "revenue_raw") %in%
+                              names(ready)))
